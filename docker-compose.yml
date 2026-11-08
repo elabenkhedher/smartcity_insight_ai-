@@ -1,0 +1,51 @@
+services:
+  # =========================================================================
+  # Base de données PostgreSQL avec extension spatiale PostGIS
+  # Utilisée par :
+  # - Étudiant 1 : Réseau routier, LineString, index GIST
+  # - Étudiant 2 : Signalements citoyens & agrégations spatiales
+  # - Étudiant 3 : Regroupement spatial des alertes accidents & casernes
+  # =========================================================================
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: smartcity_postgis
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-smartcity_db}
+      POSTGRES_USER: ${DB_USER:-smartcity_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-smartcity_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-smartcity_user} -d ${DB_NAME:-smartcity_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # Cache & Broker Redis pour Django Channels (WebSockets temps réel < 5s)
+  # Utilisé par :
+  # - Étudiant 3 : Diffusion temps réel Protection Civile (Daphne + Channels)
+  # - Équipe : Tâches asynchrones (Celery si besoin)
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: smartcity_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
