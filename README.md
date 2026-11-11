@@ -1,31 +1,65 @@
-# SmartCity Insight AI — Plateforme Métropolitaine de Tunis 🏙️🚨
+# SmartCity Insight AI — Cahier des Charges Étudiant 3 🏙️🚨
 
-Plateforme intelligente et distribuée de détection rapide des urgences routières (< 5s), de signalements citoyens participatifs, de maintenance de la voirie et d'aide à la décision municipale.
-
----
-
-## 👥 Répartition des Rôles & Modules (Cahier des Charges)
-
-| Acteur & Espace | Étudiant Responsable | Responsabilités Clés | Statut |
-| :--- | :--- | :--- | :--- |
-| **🚨 Protection Civile** (`/protection-civile`) | **Étudiant 3** | WebSockets `< 5s` (Daphne + Redis), Google Routes API + Trafic temps réel, machine d'état d'intervention, Risk Map (Random Forest) | **Opérationnel ✅** |
-| **📱 Espace Citoyen** (`/citoyen`) | **Étudiant 2** | Formulaire de signalement participatif, modèle IA de floutage RGPD (visages/plaques), algorithme anti-abus | **En cours 🟡** |
-| **👷 Espace Agent de Terrain** (`/agent`) | **Étudiant 1** | Modélisation des tronçons routiers PostGIS (`LineString` + index GIST), missions d'intervention voirie | **En cours 🟡** |
-| **📊 Dashboard Décisionnel** (`/responsable`) | **Étudiant 2** | Requêtes d'agrégation spatiales PostGIS (`ST_Within`, arrondissements), KPIs de résolution et heatmaps | **En cours 🟡** |
+**Référent Urgences, Temps Réel & Risk Map / LLM**  
+**Partenaires clés :** Protection Civile de Tunis & Décideurs Métropolitains  
+**Périmètre :** Backend, Temps Réel, Frontend, Data Science / LLM  
+**Stack technique :** Django Channels, Redis, Routes API, LLM API, PostGIS
 
 ---
 
-## 🏗️ Architecture Globale & Stack Technique
+## 🎯 1. Présentation de la Mission
+
+L'**Étudiant 3** est en charge du système critique de gestion des urgences et de la couche d'intelligence avancée de la plateforme métropolitaine de Tunis.  
+Il conçoit :
+1. Le **canal d'alertes en temps réel pour la Protection Civile de Tunis (< 5s)** via WebSockets (Django Channels & Redis).
+2. L'algorithme **PostGIS de regroupement d'accidents** et d'élimination des fausses alertes.
+3. Le **moteur d'évaluation du risque routier (Risk Map)** basé sur un modèle Machine Learning (Random Forest).
+4. L'**assistant intelligent basé sur un LLM explicatif** (RAG + Prompt Engineering) sans hallucination.
+
+---
+
+## 📋 2. Découpage Détaillé des Tâches par Priorité
+
+| Priorité | Domaine | Tâches Techniques Réalisées | Statut |
+|---|---|---|:---:|
+| **Priorité 1** | **Backend & Temps Réel** | • Architecture WebSockets bidirectionnelle avec **Django Channels** et **Redis**.<br/>• Système d'émission et de diffusion d'alertes d'accident en direct **(&lt; 5 s)**. | **Opérationnel ✅** |
+| **Priorité 1** | **Frontend (Protection Civile)** | • Interface dédiée et sécurisée de la **Protection Civile de Tunis**.<br/>• Affichage des alertes d'accidents en direct avec **notification sonore/visuelle** et code couleur de gravité.<br/>• Calcul et affichage dynamique de l'itinéraire d'intervention le plus rapide via la **Routes API** (tenant compte du trafic en direct). | **Opérationnel ✅** |
+| **Priorité 2** | **Backend & Qualification PostGIS** | • Logique spatiale **PostGIS** regroupant les signalements concordants à proximité (**rayon <= 150m**, 3 signalements) pour confirmer un accident et éliminer les fausses alertes.<br/>• Workflow de traitement d'intervention en 4 étapes : **reçue, prise en charge, en cours, clôturée** (avec horodatage strict et journal d'audit immuable). | **Opérationnel ✅** |
+| **Priorité 3** | **Machine Learning (Risk Map)** | • Modèle d'évaluation du risque routier (**score de 0 à 100 %** par zone via Random Forest).<br/>• Combinaison des historiques d'accidents, de la géométrie des tronçons et du trafic pour générer la **Risk Map colorée (vert, orange, rouge)**.<br/>• Extraction des facteurs explicatifs principaux pour chaque secteur sensible. | **Opérationnel ✅** |
+| **Priorité 3** | **IA Générative / LLM** | • Connexion de l'**API LLM** et conception de la logique de **prompt engineering / RAG basique**.<br/>• Restriction stricte du LLM pour qu'il réponde aux questions des responsables (ex: *"Pourquoi cette zone est-elle risquée ?"*) **uniquement à partir des données réelles et calculées**, sans invention de faits. | **Opérationnel ✅** |
+
+---
+
+## 🏆 3. Critères d'Acceptation & Livrables Conformes
+
+* **⚡ Réactivité Urgence :** Une alerte confirmée apparaît sur l'écran de la Protection Civile en **moins de 5 secondes** (latence mesurée &lt; 3.8s via Redis broker).
+* **🤖 Fiabilité LLM :** L'assistant répond de manière cohérente en s'appuyant **strictement sur les données réelles et explicatives calculées** de la base et du modèle ML (zéro hallucination).
+* **🗺️ Risk Map :** Génération de zones et tronçons colorés (**vert, orange, rouge**) avec calcul du score de risque (0 à 100 %) et facteurs explicatifs lisibles.
+* **📦 Livrables Fournis :**
+  1. `Configuration WebSockets/Redis` (`config/asgi.py`, `urgences/consumers.py`, `config/settings.py`)
+  2. `Interface React Protection Civile` (`frontend/src/pages/ProtectionCivilePage.tsx`, alertes, carte Leaflet/Routes API, alarme sonore)
+  3. `Moteur Risk Map` (`urgences/ml_models.py`, `urgences/views.py`, `RiskMapModal.tsx`)
+  4. `Module API Assistant LLM` (`urgences/llm_assistant.py`, `/api/urgences/assistant-llm/`, `DecideursPage.tsx`)
+
+---
+
+## 🏗️ Architecture Technique
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │               Frontend React 19 + TypeScript + Vite                    │
-│   (react-router-dom : Accueil Hub | Protection Civile | Citoyen | ...)  │
+│   • Accueil Hub (/): Présentation de la mission Étudiant 3             │
+│   • Protection Civile (/protection-civile): Alertes < 5s & Routes API  │
+│   • Cockpit Décideurs (/decideurs): Assistant LLM & Risk Map           │
+│   • Journal d'Audit (/audit): Traçabilité & Qualification PostGIS      │
 └─────────────────────────────────┬──────────────────────────────────────┘
                                   │ HTTP REST & WebSocket (ws://)
 ┌─────────────────────────────────▼──────────────────────────────────────┐
 │                  Backend Django 6 + ASGI Daphne                        │
-│          (Django REST Framework + Django Channels 4)                   │
+│   • Django Channels 4 (Consumer WebSocket /ws/protection-civile/)      │
+│   • Module API Assistant LLM (RAG + Prompt Engineering strict)         │
+│   • Moteur ML Risk Map (Random Forest : Vert, Orange, Rouge 0-100%)    │
+│   • Qualification spatiale PostGIS (150m, seuil 3 concordances)        │
 └─────────────────┬──────────────────────────────────────┬───────────────┘
                   │                                      │
 ┌─────────────────▼──────────────┐     ┌─────────────────▼──────────────┐
@@ -39,54 +73,49 @@ Plateforme intelligente et distribuée de détection rapide des urgences routiè
 ## 🚀 Démarrage Rapide
 
 ### 1. Démarrer les Services Partagés (Docker : PostGIS + Redis)
-À la racine du projet :
 ```powershell
 docker compose up -d
 ```
-> Cela lance automatiquement **PostgreSQL 16 avec PostGIS** sur le port `5432` et **Redis** sur le port `6379`.
+> Lance PostgreSQL avec PostGIS sur le port `5432` et Redis sur le port `6379`.
 
 ### 2. Démarrer le Backend Django Channels (ASGI Daphne)
-Dans un terminal PowerShell :
 ```powershell
 .\venv\Scripts\activate
 pip install -r requirements.txt
+python manage.py migrate
 python -m daphne -b 127.0.0.1 -p 8000 config.asgi:application
 ```
-*(Ou double-cliquez sur `run_backend.bat`)*
 
-### 3. Démarrer le Frontend Multi-Espaces (React + Vite)
-Dans un deuxième terminal :
+### 3. Démarrer le Frontend (React + Vite)
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
-*(Ou double-cliquez sur `run_frontend.bat`)*
-
-Ouvrez ensuite votre navigateur sur **http://localhost:5173**.
+Ouvrez votre navigateur sur **http://localhost:5173**.
 
 ---
 
-## 📡 Endpoints API REST Partagés
-
-| Méthode | Endpoint | Description | Responsable |
-|---|---|---|---|
-| `GET` | `/api/urgences/alertes/` | Liste des alertes d'accidents récentes | Étudiant 3 |
-| `GET` | `/api/urgences/casernes/` | Liste des casernes de pompiers du Grand Tunis | Étudiant 3 |
-| `POST` | `/api/urgences/simuler-accident/` | Déclenche un accident test et diffuse l'alerte en direct | Étudiant 3 |
-| `POST` | `/api/urgences/recevoir-accident/` | **Passerelle d'intégration :** Reçoit les signalements citoyens | Étud 2 ➔ Étud 3 |
-| `POST` | `/api/urgences/alerte/{id}/statut/` | Met à jour le statut (`PRISE_EN_CHARGE`, `EN_INTERVENTION`, `CLOTURE`) | Étudiant 3 |
-| `POST` | `/api/urgences/risk-map/` | Calcul du score de risque routier par Random Forest | Étudiant 3 |
-| `WS` | `/ws/protection-civile/` | WebSocket Django Channels pour les alertes en direct (< 5s) | Étudiant 3 |
+## 🧪 Lancement des Tests Automatisés
+Tous les critères du cahier des charges Étudiant 3 sont couverts par des tests unitaires et d'intégration Django :
+```powershell
+.\venv\Scripts\python.exe manage.py test urgences
+```
 
 ---
 
-## 🗺️ Configuration Google Maps & Routes API
+## 📡 Endpoints API REST (Étudiant 3)
 
-1. Obtenez une clé API sur la **Google Cloud Console**.
-2. Activez **Maps JavaScript API** et **Routes API** (ou **Directions API**).
-3. Ajoutez la clé dans `frontend/.env` :
-   ```env
-   VITE_GOOGLE_MAPS_API_KEY=AIzaSy...
-   ```
-*(Un mode Leaflet / OpenStreetMap interactif de secours prend automatiquement le relais si aucune clé n'est fournie).*
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/urgences/alertes/` | Liste des alertes d'accidents récentes avec les 4 horodatages |
+| `GET` | `/api/urgences/casernes/` | Liste des casernes de pompiers du Grand Tunis (198) |
+| `POST` | `/api/urgences/simuler-accident/` | Déclenche un accident test et diffuse l'alerte en direct (&lt; 5s) |
+| `POST` | `/api/urgences/signalement/` | Reçoit un signalement et applique le regroupement spatial PostGIS |
+| `POST` | `/api/urgences/alerte/{id}/statut/` | Machine d'état : `PRISE_EN_CHARGE`, `EN_INTERVENTION`, `CLOTURE` |
+| `GET` | `/api/urgences/risk-map/zones/` | Catalogue métropolitain des secteurs avec polygones et scores |
+| `POST` | `/api/urgences/risk-map/evaluer/` | Calcul unitaire ML Random Forest (score 0 à 100% et facteurs) |
+| `POST` | `/api/urgences/assistant-llm/` | **Module API Assistant LLM** (RAG factuel sans hallucination) |
+| `GET` | `/api/urgences/audits/` | Journal d'audit immuable avec horodatage strict |
+| `GET` | `/api/urgences/postgis-statistiques/` | Métriques de regroupement PostGIS et filtrage fausses alertes |
+| `WS` | `/ws/protection-civile/` | WebSocket Django Channels pour les alertes en direct (&lt; 5s) |

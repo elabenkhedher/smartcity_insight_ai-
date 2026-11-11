@@ -1,7 +1,9 @@
 @echo off
-echo =====================================================================
-echo  Protection Civile Tunis - Frontend React & Google Maps (Port 5173)
-echo =====================================================================
-cd /d "%~dp0frontend"
+title SmartCity Insight AI - Frontend React Vite (Protection Civile & Decideurs)
+echo =========================================================================
+echo Demarrage du Frontend React Vite
+echo Protection Civile (198), Risk Map & Assistant LLM - Etudiant 3
+echo =========================================================================
+cd frontend
 npm run dev
 pause
