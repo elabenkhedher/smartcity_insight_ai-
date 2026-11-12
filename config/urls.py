@@ -1,5 +1,7 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from urgences.views import (
     creer_signalement,
     changer_statut_intervention,
@@ -11,6 +13,8 @@ from urgences.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Module Signalements Citoyens & Dashboard (Étudiant 2)
+    path('api/signalements/', include('signalements.urls')),
     path('api/urgences/alertes/', lister_alertes, name='lister_alertes'),
     path('api/urgences/casernes/', lister_casernes, name='lister_casernes'),
     path('api/urgences/simuler-accident/', simuler_accident, name='simuler_accident'),
@@ -20,3 +24,6 @@ urlpatterns = [
     path('api/urgences/alerte/<int:alerte_id>/statut/', changer_statut_intervention, name='changer_statut_intervention'),
     path('api/urgences/risk-map/', calculer_risk_map_zone, name='calculer_risk_map_zone'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

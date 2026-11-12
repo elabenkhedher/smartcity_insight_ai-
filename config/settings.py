@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'channels',
     'urgences',
+    'signalements',
 ]
 
 MIDDLEWARE = [
@@ -74,27 +75,17 @@ USE_REDIS = os.environ.get('USE_REDIS', str(USE_DOCKER)).lower() in ('true', '1'
 REDIS_HOST = os.environ.get('REDIS_HOST', '127.0.0.1')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 
-# Base de données :
-# - En mode Docker / PostGIS : PostgreSQL avec extension PostGIS (requis par le cahier des charges)
-# - En mode développement local rapide : fallback SQLite
-if USE_DOCKER or os.environ.get('DB_ENGINE') == 'postgis':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.contrib.gis.db.backends.postgis',
-            'NAME': os.environ.get('DB_NAME', 'smartcity_db'),
-            'USER': os.environ.get('DB_USER', 'smartcity_user'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'smartcity_password'),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
+# Base de données PostgreSQL (Conteneur Docker PostGIS)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'smartcity_db'),
+        'USER': os.environ.get('DB_USER', 'smartcity_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'smartcity_pass'),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 # Configuration Channel Layers (Django Channels)
 if USE_REDIS:
@@ -138,11 +129,27 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 
+# Media files (Téléversement de photos pour signalements et anonymisation)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Email
 MAILERS = {
     'default': {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'signalements.authentication.BearerJWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '5/hour',
+        'signalements_create': '5/hour',
+    }
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
