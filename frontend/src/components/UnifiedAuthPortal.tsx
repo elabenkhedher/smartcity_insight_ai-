@@ -16,8 +16,6 @@ import {
   Lock,
   Mail,
   Phone,
-  ShieldCheck,
-  Sparkles,
   Users,
 } from 'lucide-react';
 import {
@@ -33,12 +31,14 @@ interface RoleConfig {
   badge: string;
   badgeColor: string;
   badgeBg: string;
-  gradient: string;
   borderAccent: string;
+  glowColor: string;
+  iconBg: string;
+  iconColor: string;
+  gradientCta: string;
   icon: React.ComponentType<{ size?: number; color?: string; className?: string }>;
   description: string;
   highlights: string[];
-  targetPath: string;
   actionCta: string;
 }
 
@@ -46,47 +46,53 @@ const ROLES_CONFIG: Record<PlatformRole, RoleConfig> = {
   RESPONSABLE_MUNICIPAL: {
     role: 'RESPONSABLE_MUNICIPAL',
     title: 'Responsable Municipal',
-    badge: 'Direction Municipale & Voirie',
+    badge: 'Direction Municipale',
     badgeColor: '#38bdf8',
-    badgeBg: 'rgba(56, 189, 248, 0.12)',
-    gradient: 'linear-gradient(135deg, #1d4ed8, #0284c7)',
+    badgeBg: 'rgba(56, 189, 248, 0.08)',
     borderAccent: 'rgba(56, 189, 248, 0.35)',
+    glowColor: 'rgba(56, 189, 248, 0.18)',
+    iconBg: 'rgba(56, 189, 248, 0.12)',
+    iconColor: '#38bdf8',
+    gradientCta: 'linear-gradient(135deg, #0284c7, #2563eb)',
     icon: Landmark,
     description:
-      'Supervision centralisée des dégradations de la ville, priorisation IA selon la gravité et la mobilité, et suivi des résolutions.',
-    highlights: ['Tableau de bord décisionnel', 'Scoring IA Mobilité', 'Conformité INPDP'],
-    targetPath: '/dashboard',
-    actionCta: "Accéder au Dashboard Municipal",
+      'Supervision centralisée des incidents de voirie, scoring IA d’intervention et pilotage des priorités métropolitaines.',
+    highlights: ['Tableau de bord', 'Scoring IA Mobilité', 'Suivi résolutions'],
+    actionCta: 'Accéder à l’espace',
   },
   CITOYEN: {
     role: 'CITOYEN',
     title: 'Citoyen',
-    badge: 'Espace Public Citoyen',
-    badgeColor: '#10b981',
-    badgeBg: 'rgba(16, 185, 129, 0.12)',
-    gradient: 'linear-gradient(135deg, #059669, #0d9488)',
+    badge: 'Espace Citoyen',
+    badgeColor: '#34d399',
+    badgeBg: 'rgba(16, 185, 129, 0.08)',
     borderAccent: 'rgba(16, 185, 129, 0.35)',
+    glowColor: 'rgba(16, 185, 129, 0.18)',
+    iconBg: 'rgba(16, 185, 129, 0.12)',
+    iconColor: '#34d399',
+    gradientCta: 'linear-gradient(135deg, #059669, #0d9488)',
     icon: Users,
     description:
-      'Déclaration en temps réel des incidents de voirie (nids-de-poule, déchets, éclairage) avec anonymisation automatique des visages et plaques.',
+      'Signalement géolocalisé des dégradations de chaussée avec anonymisation automatique des visages et plaques certifiée INPDP.',
     highlights: ['Signalement Géolocalisé', 'Floutage IA INPDP', 'Suivi du Traitement'],
-    targetPath: '/citoyen',
-    actionCta: 'Accéder aux Signalements',
+    actionCta: 'Accéder à l’espace',
   },
   PROTECTION_CIVILE: {
     role: 'PROTECTION_CIVILE',
     title: 'Protection Civile',
-    badge: 'Secours & Urgences (Collaborateur)',
-    badgeColor: '#f97316',
-    badgeBg: 'rgba(249, 115, 22, 0.14)',
-    gradient: 'linear-gradient(135deg, #dc2626, #ea580c)',
-    borderAccent: 'rgba(239, 68, 68, 0.4)',
+    badge: 'Secours & Urgences',
+    badgeColor: '#fb7185',
+    badgeBg: 'rgba(244, 63, 94, 0.08)',
+    borderAccent: 'rgba(244, 63, 94, 0.35)',
+    glowColor: 'rgba(244, 63, 94, 0.18)',
+    iconBg: 'rgba(244, 63, 94, 0.12)',
+    iconColor: '#fb7185',
+    gradientCta: 'linear-gradient(135deg, #e11d48, #ea580c)',
     icon: Flame,
     description:
-      'Poste de commandement des secours : alertes accidents WebSocket < 5s, dispatch des casernes, calcul d’itinéraires d’urgence et Risk Map IA.',
+      'Poste de commandement opérationnel : alertes accidents directes (< 5s), dispatching casernes et cartographie des risques IA.',
     highlights: ['Alertes Live WebSocket', 'Routage Casernes', 'Risk Map IA'],
-    targetPath: '/protection-civile',
-    actionCta: 'Accéder au Poste Protection Civile',
+    actionCta: 'Accéder à l’espace',
   },
 };
 
@@ -106,16 +112,16 @@ export interface UnifiedAuthPortalProps {
 export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
 
-  // Écran 1 vs Écran 2
+  // Écran 1 (Sélection du rôle) vs Écran 2 (Formulaire contextuel)
   const [selectedRole, setSelectedRole] = useState<PlatformRole | null>(null);
 
-  // Formulaire d'authentification dynamique
+  // Formulaire d'authentification
   const [authMode, setAuthMode] = useState<AuthMode>('LOGIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Champs injectés dynamiquement selon le rôle
+  // Champs injectés dynamiquement
   const [codeArrondissement, setCodeArrondissement] = useState('Arrondissement Bab Bhar (1001)');
   const [telephoneCin, setTelephoneCin] = useState('');
   const [matriculeAgent, setMatriculeAgent] = useState('PC-TUNIS-741');
@@ -127,7 +133,7 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
 
   const activeConfig = selectedRole ? ROLES_CONFIG[selectedRole] : null;
 
-  // Pré-remplissage rapide des comptes démo
+  // Pré-remplissage rapide Démo
   const applyDemoCredentials = (role: PlatformRole) => {
     setErrorMsg(null);
     if (role === 'RESPONSABLE_MUNICIPAL') {
@@ -151,7 +157,6 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
     setSuccessMsg(null);
     setAuthMode('LOGIN');
 
-    // Pré-initialisation propre des champs par défaut
     if (role === 'RESPONSABLE_MUNICIPAL') {
       setEmail('responsable_mairie');
       setPassword('Mairie2026!');
@@ -184,14 +189,12 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
     try {
       if (selectedRole === 'RESPONSABLE_MUNICIPAL') {
         if (authMode === 'LOGIN') {
-          // Connexion au backend Django DRF avec JWT
           const data = await loginMunicipal(cleanEmail, password);
           if (!data.user.est_responsable_municipal) {
             throw new Error(
               'Ce compte ne dispose pas des privilèges de Responsable Municipal (rôle CITOYEN détecté).'
             );
           }
-          // Stocke la session avec le code arrondissement sélectionné
           const session: UserSession = {
             id: data.user.id,
             username: data.user.username,
@@ -204,7 +207,6 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
           setActiveSession(session, data.access);
           onLoginSuccess?.(session);
         } else {
-          // Création de compte Responsable Municipal
           const registered = await registerAccount({
             email: cleanEmail,
             password,
@@ -224,14 +226,12 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
           onLoginSuccess?.(session);
         }
 
-        setSuccessMsg('Authentification réussie. Redirection vers le Dashboard Municipal...');
+        setSuccessMsg('Authentification validée. Redirection vers le Dashboard Municipal...');
         setTimeout(() => navigate('/dashboard'), 300);
 
       } else if (selectedRole === 'CITOYEN') {
-        // Citoyen
         if (authMode === 'LOGIN') {
           try {
-            // Tente la validation via le backend si le compte existe
             const data = await loginMunicipal(cleanEmail, password);
             const session: UserSession = {
               id: data.user.id,
@@ -244,7 +244,6 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
             setActiveSession(session, data.access);
             onLoginSuccess?.(session);
           } catch {
-            // Fallback de session locale citoyenne si compte démo hors-ligne
             const session: UserSession = {
               username: cleanEmail.includes('@') ? cleanEmail.split('@')[0] : cleanEmail,
               email: cleanEmail,
@@ -255,7 +254,6 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
             onLoginSuccess?.(session);
           }
         } else {
-          // Inscription Citoyen : validation du numéro de téléphone / CIN
           if (!telephoneCin.trim()) {
             throw new Error('Le numéro de téléphone ou CIN est obligatoire pour créer un compte Citoyen.');
           }
@@ -291,13 +289,12 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
           }
         }
 
-        setSuccessMsg('Session citoyenne active. Redirection vers le formulaire de signalement...');
+        setSuccessMsg('Session citoyenne validée. Redirection vers les signalements...');
         setTimeout(() => navigate('/citoyen'), 300);
 
       } else if (selectedRole === 'PROTECTION_CIVILE') {
-        // Protection Civile (Module collaborateur Étudiant 3)
         if (!matriculeAgent.trim()) {
-          throw new Error("Le matricule ou badge agent est obligatoire pour accéder au poste d'intervention.");
+          throw new Error('Le matricule ou badge agent est obligatoire pour accéder au poste.');
         }
 
         const session: UserSession = {
@@ -318,7 +315,7 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
         err?.response?.data?.detail ||
         err?.response?.data?.message ||
         err?.message ||
-        "Erreur lors de l'authentification.";
+        'Erreur lors de l’authentification.';
       setErrorMsg(msg);
     } finally {
       setIsLoading(false);
@@ -328,51 +325,33 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
   return (
     <div
       style={{
-        minHeight: 'calc(100vh - 60px)',
+        minHeight: '100vh',
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '36px 20px',
+        padding: '48px 24px',
         background:
-          'radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.08) 0%, transparent 60%), radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%), var(--bg-darker)',
+          'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.9) 60%, #030712 100%)',
+        color: '#f8fafc',
       }}
     >
       {/* ===================================================================== */}
-      {/* ÉCRAN 1 : SÉLECTION DU RÔLE (3 CARTES DISTINCTES ET CLAIRES)           */}
+      {/* ÉCRAN 1 : SÉLECTION DU RÔLE (3 CARTES ÉPURÉES STYLE PRO & CLEAN)       */}
       {/* ===================================================================== */}
       {!selectedRole && (
-        <div style={{ maxWidth: 1100, width: '100%' }}>
-          {/* En-tête de bienvenue */}
-          <div style={{ textAlign: 'center', marginBottom: 44 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 14px',
-                borderRadius: 20,
-                background: 'rgba(56, 189, 248, 0.1)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                color: '#38bdf8',
-                fontSize: 12.5,
-                fontWeight: 700,
-                marginBottom: 16,
-                letterSpacing: '0.4px',
-                textTransform: 'uppercase',
-              }}
-            >
-              <Sparkles size={14} /> Plateforme Collaborative Intelligente
-            </div>
-
+        <div style={{ maxWidth: 1040, width: '100%' }}>
+          {/* En-tête épuré et moderne */}
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <h1
               style={{
-                fontSize: 'clamp(26px, 4vw, 36px)',
+                fontSize: 'clamp(28px, 4vw, 38px)',
                 fontWeight: 800,
-                color: 'var(--text-main)',
-                letterSpacing: '-0.8px',
+                color: '#f8fafc',
+                letterSpacing: '-0.03em',
                 marginBottom: 12,
+                lineHeight: 1.2,
               }}
             >
               Sélectionnez votre espace d’accès
@@ -380,23 +359,24 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
 
             <p
               style={{
-                fontSize: 15,
-                color: 'var(--text-muted)',
-                maxWidth: 680,
+                fontSize: '15px',
+                color: '#94a3b8',
+                maxWidth: 620,
                 margin: '0 auto',
                 lineHeight: 1.6,
+                fontWeight: 400,
               }}
             >
-              SmartCity Insight AI unifie les opérations citoyennes, la gouvernance municipale et
-              la coordination des urgences en une seule architecture intégrée.
+              Plateforme collaborative unifiant la gouvernance municipale, l’action citoyenne et
+              la coordination des secours d’urgence.
             </p>
           </div>
 
-          {/* Grille des 3 Cartes de Rôles */}
+          {/* Grille des 3 Cartes de Rôles (Design Glassmorphism Subtil) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
               gap: 24,
             }}
           >
@@ -417,8 +397,10 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                     }
                   }}
                   style={{
-                    background: 'var(--bg-card)',
-                    border: `1px solid ${cfg.borderAccent}`,
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: 18,
                     padding: '28px 24px',
                     display: 'flex',
@@ -428,26 +410,29 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                     transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                     position: 'relative',
                     overflow: 'hidden',
-                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+                    boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.5)',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-6px)';
-                    e.currentTarget.style.boxShadow = `0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px ${cfg.badgeBg}`;
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.borderColor = cfg.borderAccent;
+                    e.currentTarget.style.boxShadow = `0 20px 35px -10px rgba(0, 0, 0, 0.7), 0 0 25px -5px ${cfg.glowColor}`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.35)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.boxShadow = '0 4px 20px -2px rgba(0, 0, 0, 0.5)';
                   }}
                 >
-                  {/* Effet lueur subtile en haut */}
+                  {/* Liseré haut subtil */}
                   <div
                     style={{
                       position: 'absolute',
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: 4,
-                      background: cfg.gradient,
+                      height: 2,
+                      background: cfg.gradientCta,
+                      opacity: 0.85,
                     }}
                   />
 
@@ -463,31 +448,30 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                     >
                       <div
                         style={{
-                          width: 52,
-                          height: 52,
-                          borderRadius: 14,
-                          background: cfg.gradient,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          background: cfg.iconBg,
+                          border: `1px solid ${cfg.borderAccent}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#fff',
-                          boxShadow: '0 8px 18px rgba(0, 0, 0, 0.35)',
+                          color: cfg.iconColor,
                         }}
                       >
-                        <Icon size={26} />
+                        <Icon size={22} />
                       </div>
 
                       <span
                         style={{
                           fontSize: 11,
                           fontWeight: 700,
-                          padding: '4px 10px',
+                          padding: '3px 10px',
                           borderRadius: 20,
                           background: cfg.badgeBg,
                           color: cfg.badgeColor,
                           border: `1px solid ${cfg.borderAccent}`,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.4px',
+                          letterSpacing: '0.3px',
                         }}
                       >
                         {cfg.badge}
@@ -497,9 +481,10 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                     {/* Titre & Description */}
                     <h2
                       style={{
-                        fontSize: 21,
+                        fontSize: 19,
                         fontWeight: 700,
-                        color: 'var(--text-main)',
+                        color: '#f8fafc',
+                        letterSpacing: '-0.02em',
                         marginBottom: 10,
                       }}
                     >
@@ -509,21 +494,22 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                     <p
                       style={{
                         fontSize: 13.5,
-                        color: 'var(--text-muted)',
+                        color: '#94a3b8',
                         lineHeight: 1.55,
-                        marginBottom: 20,
+                        marginBottom: 22,
+                        minHeight: 42,
                       }}
                     >
                       {cfg.description}
                     </p>
 
-                    {/* Points clés */}
+                    {/* Points clés épurés */}
                     <div
                       style={{
                         display: 'flex',
                         flexWrap: 'wrap',
                         gap: 6,
-                        marginBottom: 26,
+                        marginBottom: 24,
                       }}
                     >
                       {cfg.highlights.map((h, idx) => (
@@ -531,87 +517,55 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                           key={idx}
                           style={{
                             fontSize: 11.5,
-                            fontWeight: 600,
-                            padding: '3px 9px',
+                            fontWeight: 500,
+                            padding: '3px 8px',
                             borderRadius: 6,
                             background: 'rgba(255, 255, 255, 0.04)',
-                            color: 'var(--text-dim)',
-                            border: '1px solid var(--border-color)',
+                            color: '#cbd5e1',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
                           }}
                         >
-                          ✓ {h}
+                          {h}
                         </span>
                       ))}
                     </div>
                   </div>
 
-                  {/* Bouton d'action */}
+                  {/* Bouton d'action épuré */}
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       paddingTop: 16,
-                      borderTop: '1px solid var(--border-color)',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
                       color: cfg.badgeColor,
-                      fontSize: 13.5,
-                      fontWeight: 700,
+                      fontSize: 13,
+                      fontWeight: 600,
                     }}
                   >
                     <span>{cfg.actionCta}</span>
-                    <ArrowRight size={17} />
+                    <ArrowRight size={15} />
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Bandeau d'information de l'architecture collaborative */}
-          <div
-            style={{
-              marginTop: 40,
-              padding: '16px 22px',
-              borderRadius: 12,
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 12,
-              fontSize: 13,
-              color: 'var(--text-dim)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <ShieldCheck size={18} color="#10b981" />
-              <span>
-                Conformité <strong>INPDP</strong> active : floutage automatique des visages et plaques par vision par ordinateur OpenCV.
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <span>PostgreSQL 16 + PostGIS</span>
-              <span>•</span>
-              <span>Redis 7 Channels</span>
-              <span>•</span>
-              <span>DRF JWT Bearer</span>
-            </div>
-          </div>
         </div>
       )}
 
       {/* ===================================================================== */}
-      {/* ÉCRAN 2 : FORMULAIRE D'AUTHENTIFICATION DYNAMIQUE (CARTE / MODALE)    */}
+      {/* ÉCRAN 2 : FORMULAIRE D'AUTHENTIFICATION DYNAMIQUE (CARTE MODERNE)     */}
       {/* ===================================================================== */}
       {selectedRole && activeConfig && (
         <div
           style={{
             width: '100%',
-            maxWidth: 480,
+            maxWidth: 440,
             animation: 'fadeIn 0.25s ease-out',
           }}
         >
-          {/* Bouton Retour clair au choix des rôles */}
+          {/* Bouton Retour élégant */}
           <button
             type="button"
             onClick={handleBackToRoles}
@@ -621,36 +575,36 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
               gap: 8,
               background: 'transparent',
               border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: 13.5,
-              fontWeight: 600,
+              color: '#94a3b8',
+              fontSize: 13,
+              fontWeight: 500,
               cursor: 'pointer',
               marginBottom: 16,
-              padding: '6px 10px',
+              padding: '6px 8px',
               borderRadius: 8,
               transition: 'all 0.15s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#fff';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.color = '#f8fafc';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-muted)';
-              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = '#94a3b8';
             }}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
             <span>Retour au choix des rôles</span>
           </button>
 
           {/* Carte Principale de Connexion / Inscription */}
           <div
             style={{
-              background: 'var(--bg-card)',
-              border: `1px solid ${activeConfig.borderAccent}`,
-              borderRadius: 18,
-              padding: '30px 28px',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.55)',
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: 20,
+              padding: '32px 28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
               position: 'relative',
               overflow: 'hidden',
             }}
@@ -662,42 +616,41 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 4,
-                background: activeConfig.gradient,
+                height: 2,
+                background: activeConfig.gradientCta,
               }}
             />
 
             {/* En-tête de la carte */}
-            <div style={{ textAlign: 'center', marginBottom: 22 }}>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <div
                 style={{
-                  width: 54,
-                  height: 54,
+                  width: 48,
+                  height: 48,
                   borderRadius: 14,
-                  background: activeConfig.gradient,
+                  background: activeConfig.iconBg,
+                  border: `1px solid ${activeConfig.borderAccent}`,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
+                  color: activeConfig.iconColor,
                   marginBottom: 12,
-                  boxShadow: '0 8px 20px rgba(0, 0, 0, 0.35)',
                 }}
               >
-                {React.createElement(activeConfig.icon, { size: 26 })}
+                {React.createElement(activeConfig.icon, { size: 22 })}
               </div>
 
-              <div style={{ marginBottom: 4 }}>
+              <div style={{ marginBottom: 6 }}>
                 <span
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    padding: '3px 9px',
+                    padding: '2px 8px',
                     borderRadius: 20,
                     background: activeConfig.badgeBg,
                     color: activeConfig.badgeColor,
                     border: `1px solid ${activeConfig.borderAccent}`,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.4px',
+                    letterSpacing: '0.3px',
                   }}
                 >
                   {activeConfig.badge}
@@ -706,31 +659,32 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
 
               <h2
                 style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: 'var(--text-main)',
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: '#f8fafc',
+                  letterSpacing: '-0.02em',
                   marginBottom: 4,
                 }}
               >
                 Espace {activeConfig.title}
               </h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: 13, color: '#94a3b8' }}>
                 {authMode === 'LOGIN'
                   ? 'Connectez-vous pour accéder à vos prérogatives opérationnelles.'
                   : 'Créez votre compte pour rejoindre le réseau collaboratif.'}
               </p>
             </div>
 
-            {/* Sélecteur de Mode Basculant ("Se connecter" / "Créer un compte") */}
+            {/* Sélecteur de Mode Basculant (Style Segmented Control Pro) */}
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                background: 'var(--bg-dark)',
-                border: '1px solid var(--border-color)',
+                background: 'rgba(2, 6, 23, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: 10,
-                padding: 4,
-                marginBottom: 22,
+                padding: 3,
+                marginBottom: 20,
               }}
             >
               <button
@@ -740,15 +694,15 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                   setErrorMsg(null);
                 }}
                 style={{
-                  padding: '9px 14px',
+                  padding: '8px 12px',
                   borderRadius: 7,
                   border: 'none',
-                  fontSize: 13.5,
-                  fontWeight: 700,
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: 'pointer',
-                  background: authMode === 'LOGIN' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                  color: authMode === 'LOGIN' ? '#fff' : 'var(--text-muted)',
-                  borderBottom: authMode === 'LOGIN' ? `2px solid ${activeConfig.badgeColor}` : 'none',
+                  background: authMode === 'LOGIN' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  color: authMode === 'LOGIN' ? '#f8fafc' : '#94a3b8',
+                  boxShadow: authMode === 'LOGIN' ? '0 1px 4px rgba(0, 0, 0, 0.3)' : 'none',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -761,15 +715,15 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                   setErrorMsg(null);
                 }}
                 style={{
-                  padding: '9px 14px',
+                  padding: '8px 12px',
                   borderRadius: 7,
                   border: 'none',
-                  fontSize: 13.5,
-                  fontWeight: 700,
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: 'pointer',
-                  background: authMode === 'REGISTER' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                  color: authMode === 'REGISTER' ? '#fff' : 'var(--text-muted)',
-                  borderBottom: authMode === 'REGISTER' ? `2px solid ${activeConfig.badgeColor}` : 'none',
+                  background: authMode === 'REGISTER' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  color: authMode === 'REGISTER' ? '#f8fafc' : '#94a3b8',
+                  boxShadow: authMode === 'REGISTER' ? '0 1px 4px rgba(0, 0, 0, 0.3)' : 'none',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -777,24 +731,24 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
               </button>
             </div>
 
-            {/* Messages d'erreur & de succès */}
+            {/* Alertes d'Erreur & de Succès */}
             {errorMsg && (
               <div
                 role="alert"
                 style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.45)',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
                   borderRadius: 10,
-                  padding: '12px 14px',
-                  marginBottom: 18,
+                  padding: '10px 12px',
+                  marginBottom: 16,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   color: '#fca5a5',
-                  fontSize: 13,
+                  fontSize: 12.5,
                 }}
               >
-                <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
+                <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0 }} />
                 <span>{errorMsg}</span>
               </div>
             )}
@@ -803,51 +757,51 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
               <div
                 role="status"
                 style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.45)',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
                   borderRadius: 10,
-                  padding: '12px 14px',
-                  marginBottom: 18,
+                  padding: '10px 12px',
+                  marginBottom: 16,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   color: '#6ee7b7',
-                  fontSize: 13,
+                  fontSize: 12.5,
                 }}
               >
-                <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0 }} />
+                <CheckCircle2 size={16} color="#10b981" style={{ flexShrink: 0 }} />
                 <span>{successMsg}</span>
               </div>
             )}
 
             {/* Formulaire Dynamique */}
             <form onSubmit={handleSubmit}>
-              {/* CHAMP COMMUN 1 : Adresse Email / Identifiant */}
-              <div style={{ marginBottom: 16 }}>
+              {/* CHAMP 1 : Adresse Email / Identifiant */}
+              <div style={{ marginBottom: 15 }}>
                 <label
                   htmlFor="auth-email"
                   style={{
                     display: 'block',
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: 600,
-                    color: 'var(--text-main)',
-                    marginBottom: 6,
+                    color: '#e2e8f0',
+                    marginBottom: 5,
                   }}
                 >
-                  Adresse Email / Identifiant <span style={{ color: '#ef4444' }}>*</span>
+                  Adresse Email / Identifiant
                 </label>
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    background: 'var(--bg-dark)',
-                    border: '1px solid var(--border-color)',
+                    background: 'rgba(2, 6, 23, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: 10,
-                    padding: '10px 14px',
+                    padding: '9px 12px',
                   }}
                 >
-                  <Mail size={16} color="var(--text-dim)" />
+                  <Mail size={15} color="#64748b" />
                   <input
                     id="auth-email"
                     type="text"
@@ -867,40 +821,40 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                       background: 'transparent',
                       border: 'none',
                       outline: 'none',
-                      color: 'var(--text-main)',
-                      fontSize: 14,
+                      color: '#f8fafc',
+                      fontSize: 13.5,
                     }}
                   />
                 </div>
               </div>
 
-              {/* CHAMP SPÉCIFIQUE INJECTÉ 1 : Responsable Municipal -> Code / Arrondissement */}
+              {/* CHAMP SPÉCIFIQUE 1 : Responsable Municipal -> Arrondissement */}
               {selectedRole === 'RESPONSABLE_MUNICIPAL' && (
-                <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 15 }}>
                   <label
                     htmlFor="auth-arrondissement"
                     style={{
                       display: 'block',
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: 600,
-                      color: 'var(--text-main)',
-                      marginBottom: 6,
+                      color: '#e2e8f0',
+                      marginBottom: 5,
                     }}
                   >
-                    Code / Arrondissement Municipal <span style={{ color: '#ef4444' }}>*</span>
+                    Code / Arrondissement Municipal
                   </label>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
-                      background: 'var(--bg-dark)',
-                      border: '1px solid var(--border-color)',
+                      background: 'rgba(2, 6, 23, 0.5)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: 10,
-                      padding: '10px 14px',
+                      padding: '9px 12px',
                     }}
                   >
-                    <Building2 size={16} color="#38bdf8" />
+                    <Building2 size={15} color="#38bdf8" />
                     <select
                       id="auth-arrondissement"
                       value={codeArrondissement}
@@ -910,8 +864,8 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                         background: 'transparent',
                         border: 'none',
                         outline: 'none',
-                        color: 'var(--text-main)',
-                        fontSize: 13.5,
+                        color: '#f8fafc',
+                        fontSize: 13,
                         cursor: 'pointer',
                       }}
                     >
@@ -926,39 +880,36 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                       ))}
                     </select>
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 4 }}>
-                    Définit le périmètre territorial des statistiques et des décisions.
-                  </div>
                 </div>
               )}
 
-              {/* CHAMP SPÉCIFIQUE INJECTÉ 2 : Citoyen (UNIQUEMENT en mode Inscription) -> Téléphone / CIN */}
+              {/* CHAMP SPÉCIFIQUE 2 : Citoyen (uniquement Inscription) -> Téléphone / CIN */}
               {selectedRole === 'CITOYEN' && authMode === 'REGISTER' && (
-                <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 15 }}>
                   <label
                     htmlFor="auth-telephone-cin"
                     style={{
                       display: 'block',
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: 600,
-                      color: 'var(--text-main)',
-                      marginBottom: 6,
+                      color: '#e2e8f0',
+                      marginBottom: 5,
                     }}
                   >
-                    Numéro de Téléphone / CIN <span style={{ color: '#ef4444' }}>*</span>
+                    Numéro de Téléphone / CIN
                   </label>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
-                      background: 'var(--bg-dark)',
-                      border: '1px solid var(--border-color)',
+                      background: 'rgba(2, 6, 23, 0.5)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: 10,
-                      padding: '10px 14px',
+                      padding: '9px 12px',
                     }}
                   >
-                    <Phone size={16} color="#10b981" />
+                    <Phone size={15} color="#34d399" />
                     <input
                       id="auth-telephone-cin"
                       type="text"
@@ -971,44 +922,41 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                         background: 'transparent',
                         border: 'none',
                         outline: 'none',
-                        color: 'var(--text-main)',
-                        fontSize: 14,
+                        color: '#f8fafc',
+                        fontSize: 13.5,
                       }}
                     />
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 4 }}>
-                    Requis pour la certification citoyenne et le suivi des résolutions d’incidents.
                   </div>
                 </div>
               )}
 
-              {/* CHAMP SPÉCIFIQUE INJECTÉ 3 : Protection Civile -> Matricule / Badge Agent */}
+              {/* CHAMP SPÉCIFIQUE 3 : Protection Civile -> Matricule */}
               {selectedRole === 'PROTECTION_CIVILE' && (
-                <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 15 }}>
                   <label
                     htmlFor="auth-matricule"
                     style={{
                       display: 'block',
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: 600,
-                      color: 'var(--text-main)',
-                      marginBottom: 6,
+                      color: '#e2e8f0',
+                      marginBottom: 5,
                     }}
                   >
-                    Matricule / Badge Agent <span style={{ color: '#ef4444' }}>*</span>
+                    Matricule / Badge Agent
                   </label>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
-                      background: 'var(--bg-dark)',
-                      border: '1px solid var(--border-color)',
+                      background: 'rgba(2, 6, 23, 0.5)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: 10,
-                      padding: '10px 14px',
+                      padding: '9px 12px',
                     }}
                   >
-                    <BadgeAlert size={16} color="#f97316" />
+                    <BadgeAlert size={15} color="#fb7185" />
                     <input
                       id="auth-matricule"
                       type="text"
@@ -1021,43 +969,40 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                         background: 'transparent',
                         border: 'none',
                         outline: 'none',
-                        color: 'var(--text-main)',
-                        fontSize: 14,
+                        color: '#f8fafc',
+                        fontSize: 13.5,
                       }}
                     />
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 4 }}>
-                    Identifiant radio et badge d’intervention dans le système de dispatch.
                   </div>
                 </div>
               )}
 
-              {/* CHAMP COMMUN 2 : Mot de passe */}
-              <div style={{ marginBottom: 22 }}>
+              {/* CHAMP 2 : Mot de passe */}
+              <div style={{ marginBottom: 20 }}>
                 <label
                   htmlFor="auth-password"
                   style={{
                     display: 'block',
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: 600,
-                    color: 'var(--text-main)',
-                    marginBottom: 6,
+                    color: '#e2e8f0',
+                    marginBottom: 5,
                   }}
                 >
-                  Mot de passe <span style={{ color: '#ef4444' }}>*</span>
+                  Mot de passe
                 </label>
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    background: 'var(--bg-dark)',
-                    border: '1px solid var(--border-color)',
+                    background: 'rgba(2, 6, 23, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: 10,
-                    padding: '10px 14px',
+                    padding: '9px 12px',
                   }}
                 >
-                  <Lock size={16} color="var(--text-dim)" />
+                  <Lock size={15} color="#64748b" />
                   <input
                     id="auth-password"
                     type={showPassword ? 'text' : 'password'}
@@ -1071,8 +1016,8 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                       background: 'transparent',
                       border: 'none',
                       outline: 'none',
-                      color: 'var(--text-main)',
-                      fontSize: 14,
+                      color: '#f8fafc',
+                      fontSize: 13.5,
                     }}
                   />
                   <button
@@ -1081,51 +1026,51 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--text-muted)',
+                      color: '#94a3b8',
                       cursor: 'pointer',
                       padding: 2,
                       display: 'flex',
                     }}
                     aria-label="Afficher ou masquer le mot de passe"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>
 
-              {/* Bouton de Soumission Principal */}
+              {/* Bouton de Soumission */}
               <button
                 type="submit"
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  background: isLoading ? 'var(--border-color)' : activeConfig.gradient,
+                  background: isLoading ? 'rgba(51, 65, 85, 0.6)' : activeConfig.gradientCta,
                   border: 'none',
                   borderRadius: 10,
-                  padding: '13px 18px',
+                  padding: '12px 16px',
                   color: '#fff',
-                  fontSize: 14.5,
-                  fontWeight: 700,
+                  fontSize: 14,
+                  fontWeight: 600,
                   cursor: isLoading ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  boxShadow: `0 4px 18px rgba(0, 0, 0, 0.4)`,
+                  boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.35)',
                   transition: 'all 0.15s ease',
                 }}
               >
                 {isLoading ? (
                   <>
-                    <Loader2 size={17} className="animate-spin" />
-                    <span>Validation des informations...</span>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Validation...</span>
                   </>
                 ) : (
                   <>
-                    <KeyRound size={17} />
+                    <KeyRound size={16} />
                     <span>
                       {authMode === 'LOGIN'
-                        ? `Se connecter à l'espace ${activeConfig.title}`
+                        ? `Se connecter à l’espace ${activeConfig.title}`
                         : `Créer mon compte ${activeConfig.title}`}
                     </span>
                   </>
@@ -1133,40 +1078,40 @@ export const UnifiedAuthPortal: React.FC<UnifiedAuthPortalProps> = ({ onLoginSuc
               </button>
             </form>
 
-            {/* Quick Demo Credentials Autofill Pill */}
+            {/* Quick Demo Autofill Pill épuré */}
             <div
               style={{
-                marginTop: 20,
-                padding: '12px 14px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px dashed var(--border-color)',
-                borderRadius: 10,
+                marginTop: 18,
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px dashed rgba(255, 255, 255, 0.08)',
+                borderRadius: 8,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                fontSize: 12,
-                color: 'var(--text-muted)',
+                fontSize: 11.5,
+                color: '#94a3b8',
               }}
             >
               <div>
-                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Compte Démo :</span>{' '}
+                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Démo :</span>{' '}
                 {selectedRole === 'RESPONSABLE_MUNICIPAL'
                   ? 'responsable_mairie / Mairie2026!'
                   : selectedRole === 'CITOYEN'
                     ? 'citoyen_demo / Citoyen2026!'
-                    : 'agent_pc / PC2026! (PC-TUNIS-741)'}
+                    : 'agent_pc / PC2026!'}
               </div>
               <button
                 type="button"
                 onClick={() => applyDemoCredentials(selectedRole)}
                 style={{
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  color: '#38bdf8',
-                  padding: '4px 8px',
-                  borderRadius: 6,
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: '#f8fafc',
+                  padding: '3px 7px',
+                  borderRadius: 5,
                   fontSize: 11,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: 'pointer',
                 }}
               >
