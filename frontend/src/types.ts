@@ -103,6 +103,22 @@ export interface CreateSignalementPayload {
 
 export type UserRole = 'CITOYEN' | 'RESPONSABLE_MUNICIPAL';
 
+export type PlatformRole = 'RESPONSABLE_MUNICIPAL' | 'CITOYEN' | 'PROTECTION_CIVILE';
+
+export type AuthMode = 'LOGIN' | 'REGISTER';
+
+export interface UserSession {
+  id?: number | string;
+  username: string;
+  email: string;
+  role: PlatformRole;
+  est_responsable_municipal?: boolean;
+  code_arrondissement?: string;
+  telephone_cin?: string;
+  matricule_agent?: string;
+  token?: string;
+}
+
 export interface AuthUser {
   id: number;
   username: string;

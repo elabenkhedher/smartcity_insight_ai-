@@ -9,6 +9,7 @@ import {
   Signalement,
   SignalementStatistiques,
   StatutSignalement,
+  UserSession,
 } from '../types';
 
 export const BACKEND_URL =
@@ -21,6 +22,7 @@ export const WS_BASE_URL =
 
 const AUTH_TOKEN_KEY = 'smartcity_jwt_token';
 const AUTH_USER_KEY = 'smartcity_auth_user';
+const UNIFIED_SESSION_KEY = 'smartcity_unified_session';
 
 export function getAuthToken(): string | null {
   try {
@@ -39,22 +41,78 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
+export function getActiveSession(): UserSession | null {
+  try {
+    const raw = localStorage.getItem(UNIFIED_SESSION_KEY);
+    if (raw) return JSON.parse(raw) as UserSession;
+    // Fallback sur AuthUser si disponible
+    const user = getStoredUser();
+    if (user) {
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role === 'RESPONSABLE_MUNICIPAL' ? 'RESPONSABLE_MUNICIPAL' : 'CITOYEN',
+        est_responsable_municipal: user.est_responsable_municipal,
+        token: getAuthToken() || undefined,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveSession(session: UserSession, token?: string): void {
+  try {
+    localStorage.setItem(UNIFIED_SESSION_KEY, JSON.stringify(session));
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    }
+    // Synchroniser avec AuthUser si applicable
+    const authUser: AuthUser = {
+      id: typeof session.id === 'number' ? session.id : 1,
+      username: session.username || session.email.split('@')[0],
+      email: session.email,
+      role: session.role === 'RESPONSABLE_MUNICIPAL' ? 'RESPONSABLE_MUNICIPAL' : 'CITOYEN',
+      est_responsable_municipal: session.role === 'RESPONSABLE_MUNICIPAL',
+    };
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+  } catch (err) {
+    console.warn('Impossible de sauvegarder la session utilisateur unifiée:', err);
+  }
+}
+
+export function clearActiveSession(): void {
+  try {
+    localStorage.removeItem(UNIFIED_SESSION_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function setAuthSession(token: string, user: AuthUser): void {
   try {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    const unifiedSession: UserSession = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      est_responsable_municipal: user.est_responsable_municipal,
+      token,
+    };
+    localStorage.setItem(UNIFIED_SESSION_KEY, JSON.stringify(unifiedSession));
   } catch (err) {
     console.warn('Impossible de sauvegarder la session auth:', err);
   }
 }
 
 export function clearAuthSession(): void {
-  try {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_KEY);
-  } catch {
-    // Ignore storage errors
-  }
+  clearActiveSession();
 }
 
 /**
@@ -103,6 +161,20 @@ export async function loginMunicipal(
     username,
     password,
   });
+  setAuthSession(response.data.access, response.data.user);
+  return response.data;
+}
+
+/**
+ * Inscription d'un nouvel utilisateur (Citoyen ou Responsable Municipal)
+ */
+export async function registerAccount(payload: {
+  email: string;
+  password: string;
+  role: 'CITOYEN' | 'RESPONSABLE_MUNICIPAL';
+  username?: string;
+}): Promise<LoginResponse> {
+  const response = await apiClient.post<LoginResponse>('signalements/auth/register/', payload);
   setAuthSession(response.data.access, response.data.user);
   return response.data;
 }

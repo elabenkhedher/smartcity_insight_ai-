@@ -203,18 +203,30 @@ class LoginSignalementView(APIView):
     """
     Endpoint d'authentification délivrant un jeton Bearer JWT signé HS256
     ainsi que le rôle de l'utilisateur (CITOYEN ou RESPONSABLE_MUNICIPAL).
+    Accepte nom d'utilisateur ou adresse email.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = (request.data.get('username') or '').strip()
+        raw_ident = (
+            request.data.get('username')
+            or request.data.get('email')
+            or ''
+        ).strip()
         password = request.data.get('password') or ''
 
-        if not username or not password:
+        if not raw_ident or not password:
             return Response(
-                {'detail': "Veuillez renseigner le nom d'utilisateur et le mot de passe."},
+                {'detail': "Veuillez renseigner l'identifiant / email et le mot de passe."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        username = raw_ident
+        if '@' in raw_ident:
+            from django.contrib.auth.models import User
+            matched_user = User.objects.filter(email__iexact=raw_ident).first()
+            if matched_user:
+                username = matched_user.username
 
         user = authenticate(request, username=username, password=password)
         if user is None:
@@ -243,6 +255,79 @@ class LoginSignalementView(APIView):
                 },
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class RegisterSignalementView(APIView):
+    """
+    Endpoint d'inscription pour créer un compte (Citoyen ou Responsable Municipal).
+    Délivre immédiatement un jeton JWT et initialise le ProfilUtilisateur avec le bon rôle.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from django.contrib.auth.models import User
+        from .models import ProfilUtilisateur, UserRole
+
+        email = (request.data.get('email') or '').strip()
+        password = request.data.get('password') or ''
+        role = request.data.get('role') or UserRole.CITOYEN
+        username = (
+            request.data.get('username')
+            or (email.split('@')[0] if email else '')
+            or ''
+        ).strip()
+
+        if not email or not password:
+            return Response(
+                {'detail': "L'adresse email et le mot de passe sont obligatoires."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if User.objects.filter(email__iexact=email).exists():
+            return Response(
+                {'detail': 'Un compte avec cette adresse email existe déjà.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Génération d'un nom d'utilisateur unique
+        base_username = username if username else 'citoyen'
+        final_username = base_username
+        suffix = 1
+        while User.objects.filter(username__iexact=final_username).exists():
+            final_username = f"{base_username}_{suffix}"
+            suffix += 1
+
+        user = User.objects.create_user(
+            username=final_username,
+            email=email,
+            password=password,
+        )
+
+        target_role = (
+            UserRole.RESPONSABLE_MUNICIPAL
+            if role == UserRole.RESPONSABLE_MUNICIPAL
+            else UserRole.CITOYEN
+        )
+        profil, _ = ProfilUtilisateur.objects.get_or_create(user=user)
+        profil.role = target_role
+        profil.save()
+
+        token = generate_jwt_token(user)
+        return Response(
+            {
+                'access': token,
+                'token_type': 'Bearer',
+                'user': {
+                    'id': user.pk,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': get_user_role(user),
+                    'est_responsable_municipal': is_responsable_municipal(user),
+                },
+                'message': 'Compte créé avec succès.',
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 
