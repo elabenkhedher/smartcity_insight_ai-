@@ -4,9 +4,10 @@ import {
   Volume2,
   VolumeX,
   Car,
-  ShieldAlert,
-  Zap,
-  Activity,
+  Cpu,
+  Radio,
+  Sparkles,
+  AlertOctagon,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -33,80 +34,94 @@ export const Header: React.FC<HeaderProps> = ({
   activeCount,
 }) => {
   return (
-    <header
+    <div
       style={{
-        backgroundColor: '#090d16',
+        background: 'linear-gradient(180deg, #0f172a 0%, #090d16 100%)',
         borderBottom: '1px solid #1e293b',
-        padding: '10px 20px',
+        padding: '12px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '12px',
-        zIndex: 50,
+        gap: '14px',
+        color: '#ffffff',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
       }}
     >
       {/* Brand & Subtitle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         <div
           style={{
-            width: '42px',
-            height: '42px',
+            width: '38px',
+            height: '38px',
             borderRadius: '10px',
-            backgroundColor: '#dc2626',
-            boxShadow: '0 0 16px rgba(220, 38, 38, 0.45)',
+            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
+            color: '#ffffff',
+            boxShadow: '0 0 16px rgba(239, 68, 68, 0.45)',
             flexShrink: 0,
           }}
         >
-          <Flame size={24} />
+          <Flame size={20} />
         </div>
+
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '0.02em', color: '#f8fafc', margin: 0 }}>
-              PROTECTION CIVILE DE TUNIS
-            </h1>
-            <span
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h1
               style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.18)',
-                color: '#f87171',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                borderRadius: '4px',
-                padding: '2px 7px',
-                fontSize: '11px',
+                fontSize: '16px',
                 fontWeight: 800,
-                letterSpacing: '0.05em',
+                letterSpacing: '-0.01em',
+                color: '#ffffff',
+                margin: 0,
+                fontFamily: 'var(--font-sans)',
               }}
             >
-              PC-198
-            </span>
+              CENTRE DE COMMANDEMENT OPÉRATIONNEL (CCO 198)
+            </h1>
+
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '9999px',
+                padding: '2px 8px',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+              }}
+            >
+              <AlertOctagon size={12} />
+              <span>{activeCount} URGENCE{activeCount > 1 ? 'S' : ''} EN COURS</span>
+            </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>Centre de Commandement Opérationnel & Dispatching des Secours</span>
-            <span style={{ color: '#475569' }}>•</span>
-            <span style={{ color: '#38bdf8', fontWeight: 500 }}>Grand Tunis</span>
-          </p>
+
+          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+            Direction Générale de la Protection Civile de Tunis &bull; Dispatching d'urgence &lt; 5s
+          </div>
         </div>
       </div>
 
-      {/* Center Controls & Indicators */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* WebSocket Connection Pill */}
+      {/* Action Controls & Telemetry Pills */}
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        {/* WebSocket Daphne status indicator */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '6px 14px',
-            borderRadius: '20px',
-            backgroundColor: wsConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${wsConnected ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
-            fontSize: '12px',
-            fontWeight: 600,
-            color: wsConnected ? '#34d399' : '#f87171',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            backgroundColor: wsConnected ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            border: `1px solid ${wsConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
           }}
         >
           <span
@@ -114,124 +129,117 @@ export const Header: React.FC<HeaderProps> = ({
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              backgroundColor: wsConnected ? '#10b981' : '#ef4444',
-              boxShadow: wsConnected ? '0 0 8px #10b981' : '0 0 8px #ef4444',
+              backgroundColor: wsConnected ? '#22c55e' : '#ef4444',
+              boxShadow: wsConnected ? '0 0 8px #22c55e' : '0 0 8px #ef4444',
             }}
           />
-          {wsConnected ? 'WebSocket Direct (<5s)' : 'WebSocket Déconnecté'}
+          <Radio size={13} color={wsConnected ? '#4ade80' : '#f87171'} />
+          <span style={{ color: wsConnected ? '#86efac' : '#fca5a5', fontWeight: 600 }}>
+            {wsConnected ? 'DAPHNE CHANNELS EN DIRECT' : 'WEBSOCKET RECONNEXION'}
+          </span>
         </div>
 
-        {/* Active Emergencies Counter */}
-        <div
+        {/* Sound toggle button */}
+        <button
+          onClick={onToggleSound}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '6px 14px',
-            borderRadius: '20px',
-            backgroundColor: activeCount > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(30, 41, 59, 0.6)',
-            border: `1px solid ${activeCount > 0 ? 'rgba(239, 68, 68, 0.4)' : '#334155'}`,
+            padding: '7px 12px',
+            borderRadius: '8px',
+            backgroundColor: soundEnabled ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${soundEnabled ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
+            color: soundEnabled ? '#93c5fd' : '#94a3b8',
             fontSize: '12px',
             fontWeight: 600,
-            color: activeCount > 0 ? '#fca5a5' : '#94a3b8',
+            cursor: 'pointer',
+          }}
+          title={soundEnabled ? 'Sirène d’urgence activée' : 'Sirène d’urgence coupée'}
+        >
+          {soundEnabled ? <Volume2 size={15} color="#60a5fa" /> : <VolumeX size={15} color="#94a3b8" />}
+          <span>{soundEnabled ? 'SIRÈNE 198 : ACTIVE' : 'SIRÈNE : MUETTE'}</span>
+        </button>
+
+        {/* Traffic toggle button */}
+        <button
+          onClick={onToggleTraffic}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 12px',
+            borderRadius: '8px',
+            backgroundColor: trafficLayerActive ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${trafficLayerActive ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
+            color: trafficLayerActive ? '#fcd34d' : '#94a3b8',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+          title="Prendre en compte le trafic en temps réel dans le calcul d’itinéraire"
+        >
+          <Car size={15} color={trafficLayerActive ? '#fbbf24' : '#94a3b8'} />
+          <span>TRAFIC DIRECT : {trafficLayerActive ? 'ON' : 'OFF'}</span>
+        </button>
+
+        {/* Risk Map Modal Trigger */}
+        <button
+          onClick={onOpenRiskMapModal}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 12px',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(139, 92, 246, 0.15)',
+            border: '1px solid rgba(139, 92, 246, 0.35)',
+            color: '#c4b5fd',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
           }}
         >
-          <Activity size={14} color={activeCount > 0 ? '#ef4444' : '#64748b'} />
-          <span>
-            {activeCount} incident{activeCount > 1 ? 's' : ''} actif{activeCount > 1 ? 's' : ''}
-          </span>
-        </div>
-      </div>
+          <Cpu size={15} color="#a78bfa" />
+          <span>MODÈLE RISK MAP</span>
+        </button>
 
-      {/* Right Action Tools */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {/* Simuler Accident Action Button */}
+        {/* Simulate Accident Button */}
         <button
           onClick={onSimulateAccident}
           disabled={simulating}
           style={{
-            backgroundColor: '#dc2626',
-            border: '1px solid #ef4444',
-            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
             padding: '8px 16px',
-            color: '#fff',
+            borderRadius: '8px',
+            background: simulating
+              ? '#475569'
+              : 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+            color: '#ffffff',
+            border: 'none',
             fontSize: '12px',
             fontWeight: 700,
-            cursor: simulating ? 'wait' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 0 16px rgba(220, 38, 38, 0.4)',
-            transition: 'all 0.2s',
+            fontFamily: 'var(--font-mono)',
+            cursor: simulating ? 'not-allowed' : 'pointer',
+            boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
+            letterSpacing: '0.02em',
           }}
         >
-          <Zap size={15} />
-          {simulating ? 'Déclenchement...' : '⚡ Simuler un Accident'}
-        </button>
-
-        {/* Traffic Toggle Button */}
-        <button
-          onClick={onToggleTraffic}
-          title="Afficher le trafic routier en direct sur Tunis"
-          style={{
-            backgroundColor: trafficLayerActive ? 'rgba(16, 185, 129, 0.18)' : '#1e293b',
-            border: `1px solid ${trafficLayerActive ? '#10b981' : '#334155'}`,
-            borderRadius: '8px',
-            padding: '8px 14px',
-            color: trafficLayerActive ? '#6ee7b7' : '#cbd5e1',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <Car size={15} />
-          <span>Trafic Direct</span>
-        </button>
-
-        {/* Risk Map IA Button */}
-        <button
-          onClick={onOpenRiskMapModal}
-          title="Évaluer le risque avec le modèle Machine Learning (Random Forest)"
-          style={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            padding: '8px 14px',
-            color: '#cbd5e1',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <ShieldAlert size={15} color="#f59e0b" />
-          <span>Risk Map IA</span>
-        </button>
-
-        {/* Audio Mute/Unmute */}
-        <button
-          onClick={onToggleSound}
-          title={soundEnabled ? "Sirène d'alerte activée" : "Sirène d'alerte coupée"}
-          style={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            padding: '8px 12px',
-            color: soundEnabled ? '#38bdf8' : '#64748b',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          {simulating ? (
+            <>
+              <Sparkles size={14} className="animate-spin" />
+              <span>DÉCLENCHEMENT...</span>
+            </>
+          ) : (
+            <>
+              <Flame size={15} />
+              <span>SIMULER ACCIDENT (&lt; 5s)</span>
+            </>
+          )}
         </button>
       </div>
-    </header>
+    </div>
   );
 };

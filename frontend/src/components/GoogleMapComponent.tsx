@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import L from 'leaflet';
-import type { Alerte, Caserne, RouteInfo } from '../types';
+import type { Alerte, Caserne, RouteInfo, ZoneRisque } from '../types';
+import { fetchZonesRiskMap } from '../services/api';
 
 interface GoogleMapComponentProps {
   casernes: Caserne[];
@@ -26,7 +27,17 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
   // Leaflet map instances
   const leafletMapRef = useRef<L.Map | null>(null);
   const leafletMarkersRef = useRef<L.LayerGroup | null>(null);
+  const leafletRiskLayerRef = useRef<L.LayerGroup | null>(null);
   const leafletRouteLayerRef = useRef<L.Polyline | null>(null);
+
+  // Risk map layer state
+  const [riskMapVisible, setRiskMapVisible] = useState<boolean>(true);
+  const [riskZones, setRiskZones] = useState<ZoneRisque[]>([]);
+
+  // Load risk zones
+  useEffect(() => {
+    fetchZonesRiskMap().then((data) => setRiskZones(data)).catch((err) => console.warn(err));
+  }, []);
 
   // Distance Haversine helper
   const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -49,7 +60,7 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
       if (casernes.length === 0) {
         return {
           id: 'def',
-          nom: 'Caserne Centrale - Bab El Khadra',
+          nom: 'Caserne Centrale — Bab El Khadra',
           adresse: 'Avenue Habib Thameur / Bab El Khadra, Tunis',
           latitude: 36.8123,
           longitude: 10.1784,
@@ -73,129 +84,220 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
     [casernes, selectedCaserne]
   );
 
-  // 1. Initialiser la carte Leaflet sur le Grand Tunis avec gestion robuste du redimensionnement
+  // 1. Initialiser la carte Leaflet sur le Grand Tunis
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (leafletMapRef.current) return;
 
-    // Définir les limites géographiques de restriction sur le Grand Tunis
     const tunisBounds = L.latLngBounds(
-      L.latLng(36.4, 9.8), // Sud-Ouest
-      L.latLng(37.2, 10.6)  // Nord-Est
+      L.latLng(36.4, 9.8),
+      L.latLng(37.2, 10.6)
     );
 
     const map = L.map(mapContainerRef.current, {
-      center: [36.8123, 10.1784], // Bab El Khadra / Avenue Habib Bourguiba
+      center: [36.8123, 10.1784],
       zoom: 13,
       minZoom: 11,
       maxZoom: 18,
       maxBounds: tunisBounds,
       maxBoundsViscosity: 0.85,
-      zoomControl: false, // On va le positionner proprement
+      zoomControl: false,
     });
 
-    // Repositionner le contrôle de zoom en haut à gauche
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    // Couche OpenStreetMap officielle 100% libre et gratuite (aucune clé requise, aucun filigrane)
     const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19,
     });
     osmLayer.addTo(map);
 
+    leafletRiskLayerRef.current = L.layerGroup().addTo(map);
     leafletMarkersRef.current = L.layerGroup().addTo(map);
     leafletMapRef.current = map;
 
-    // Correction essentielle : Invalidation immédiate et différée pour flexbox & redimensionnement
     const triggerResize = () => {
-      if (map) {
-        map.invalidateSize();
-      }
+      if (map) map.invalidateSize();
     };
 
     triggerResize();
     const t1 = setTimeout(triggerResize, 100);
     const t2 = setTimeout(triggerResize, 350);
 
-    const resizeObserver = new ResizeObserver(() => {
-      triggerResize();
-    });
-    resizeObserver.observe(mapContainerRef.current);
-
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      resizeObserver.disconnect();
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-      }
+      map.remove();
+      leafletMapRef.current = null;
     };
   }, []);
 
-  // 2. Mise à jour des marqueurs (Casernes 🚒 et Accidents 🚨)
+  // 2. Afficher / Mettre à jour la couche Risk Map (Vert, Orange, Rouge)
+  useEffect(() => {
+    if (!leafletMapRef.current || !leafletRiskLayerRef.current) return;
+
+    leafletRiskLayerRef.current.clearLayers();
+
+    if (!riskMapVisible || riskZones.length === 0) return;
+
+    riskZones.forEach((z) => {
+      const isRouge = z.niveau_risk_map === 'ROUGE';
+      const isOrange = z.niveau_risk_map === 'ORANGE';
+      const color = isRouge ? '#b91c1c' : isOrange ? '#d97706' : '#15803d';
+      const fillColor = isRouge ? '#ef4444' : isOrange ? '#f59e0b' : '#22c55e';
+
+      // Afficher soit le polygone si fourni, soit un cercle de secteur
+      let layer: L.Polygon | L.Circle;
+      if (z.points_polygone && z.points_polygone.length >= 3) {
+        layer = L.polygon(z.points_polygone, {
+          color: color,
+          weight: 2,
+          fillColor: fillColor,
+          fillOpacity: 0.35,
+        });
+      } else {
+        layer = L.circle([z.latitude, z.longitude], {
+          radius: z.rayon_metres || 450,
+          color: color,
+          weight: 2,
+          fillColor: fillColor,
+          fillOpacity: 0.35,
+        });
+      }
+
+      const facteursHtml = z.facteurs_explicatifs
+        .map((f) => `<li style="margin-bottom: 2px;">${f}</li>`)
+        .join('');
+
+      layer.bindPopup(`
+        <div style="font-family: sans-serif; font-size: 12px; min-width: 240px; padding: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 6px;">
+            <strong style="color: #0a0a0a; font-size: 13px;">${z.nom}</strong>
+            <span style="background: ${isRouge ? '#fee2e2' : isOrange ? '#fef3c7' : '#dcfce7'}; color: ${color}; padding: 2px 6px; border-radius: 2px; font-weight: bold; font-family: monospace;">
+              ${z.score_risque_pourcentage}% (${z.niveau_risk_map})
+            </span>
+          </div>
+          <div style="font-size: 11px; color: #4b5563; margin-bottom: 6px;">
+            📍 ${z.arrondissement}<br/>
+            🚗 Trafic index : <strong>${z.trafic_index}/5</strong> &bull; 🚧 Travaux : <strong>${z.presence_travaux ? 'Oui' : 'Non'}</strong>
+          </div>
+          <div style="font-size: 11px; font-weight: bold; color: #111827; margin-top: 4px;">Facteurs explicatifs (Random Forest) :</div>
+          <ul style="margin: 2px 0 0 0; padding-left: 16px; font-size: 11px; color: #374151;">
+            ${facteursHtml}
+          </ul>
+        </div>
+      `);
+
+      layer.addTo(leafletRiskLayerRef.current!);
+    });
+  }, [riskMapVisible, riskZones]);
+
+  // 3. Afficher les casernes et les alertes d'accident en direct (< 5s)
   useEffect(() => {
     if (!leafletMapRef.current || !leafletMarkersRef.current) return;
 
     leafletMarkersRef.current.clearLayers();
 
-    // Marqueurs Casernes (🚒)
-    casernes.forEach((c) => {
-      const fireIcon = L.divIcon({
-        className: 'custom-fire-marker',
-        html: '🚒',
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
+    // Icône des casernes 198
+    const fireStationIcon = L.divIcon({
+      className: 'firestation-custom-marker',
+      html: `
+        <div style="
+          width: 32px;
+          height: 32px;
+          background-color: #0a0a0a;
+          border: 2px solid #ffffff;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        ">
+          🚒
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -18],
+    });
 
-      const m = L.marker([c.latitude, c.longitude], { icon: fireIcon });
+    casernes.forEach((c) => {
+      const m = L.marker([c.latitude, c.longitude], { icon: fireStationIcon });
       m.bindPopup(`
-        <div style="color: #0f172a; font-family: sans-serif; font-size: 12px; min-width: 190px;">
-          <strong style="color: #0284c7; font-size: 13px;">🚒 ${c.nom}</strong><br/>
-          <span style="color: #64748b; font-size: 11px;">📍 ${c.adresse}</span>
-          <div style="margin-top: 6px; padding: 4px 6px; background: #e0f2fe; border-radius: 4px; color: #0369a1; font-weight: bold; font-size: 11px;">
-            🚑 ${c.ambulances_disponibles} ambulances • 🚒 ${c.camions_disponibles} camions
-          </div>
-          <div style="margin-top: 4px; font-size: 11px; color: #334155;">
-            📞 Urgences : <strong>${c.telephone}</strong>
+        <div style="font-family: sans-serif; font-size: 12px; min-width: 200px;">
+          <strong style="color: #0a0a0a; font-size: 13px;">${c.nom}</strong><br/>
+          <span style="color: #4b5563;">${c.adresse}</span><br/>
+          <div style="margin-top: 6px; padding: 4px; background: #f3f4f6; border-radius: 2px; font-size: 11px; font-family: monospace;">
+            🚑 Ambulances : ${c.ambulances_disponibles} &bull; 🚒 Camions : ${c.camions_disponibles}<br/>
+            📞 Urgences : ${c.telephone}
           </div>
         </div>
       `);
       m.addTo(leafletMarkersRef.current!);
     });
 
-    // Marqueurs Accidents UNIQUEMENT pour les alertes actives (les interventions clôturées disparaissent de la carte)
-    const alertesActives = alertes.filter((a) => a.statut !== 'CLOTURE');
+    // Icônes des alertes d'accident avec code couleur de gravité exigé
+    alertes.forEach((a) => {
+      const isSelected = selectedAlerte?.id === a.id;
+      const isGrave = a.gravite === 'GRAVE';
+      const isMoyenne = a.gravite === 'MOYENNE';
+      const markerColor = isGrave ? '#b91c1c' : isMoyenne ? '#ea580c' : '#15803d';
 
-    alertesActives.forEach((a) => {
-      let cls = 'custom-accident-marker';
-      if (a.gravite === 'GRAVE') cls += ' grave';
-      else if (a.gravite === 'MOYENNE') cls += ' moyenne';
-      else cls += ' faible';
-      if (a.statut === 'PRISE_EN_CHARGE') cls += ' resolu';
-
-      const accidentIcon = L.divIcon({
-        className: cls,
-        html: '🚨',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+      const alertIcon = L.divIcon({
+        className: 'alert-custom-marker',
+        html: `
+          <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+            ${
+              a.statut !== 'CLOTURE'
+                ? `<div style="
+                    position: absolute;
+                    inset: -4px;
+                    border-radius: 50%;
+                    background-color: ${markerColor};
+                    opacity: 0.4;
+                    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+                  "></div>`
+                : ''
+            }
+            <div style="
+              width: ${isSelected ? '32px' : '28px'};
+              height: ${isSelected ? '32px' : '28px'};
+              background-color: ${markerColor};
+              border: 2px solid #ffffff;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #ffffff;
+              font-size: 14px;
+              font-weight: bold;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+              transition: all 150ms ease;
+            ">
+              🚨
+            </div>
+          </div>
+        `,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        popupAnchor: [0, -18],
       });
 
-      const m = L.marker([a.latitude, a.longitude], { icon: accidentIcon });
+      const m = L.marker([a.latitude, a.longitude], { icon: alertIcon });
       m.bindPopup(`
-        <div style="color: #0f172a; font-family: sans-serif; font-size: 12px; min-width: 180px;">
+        <div style="font-family: sans-serif; font-size: 12px; min-width: 220px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <strong style="color: #dc2626; font-size: 13px;">🚨 ACCIDENT #${a.id}</strong>
-            <span style="background: #fee2e2; color: #dc2626; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
+            <strong style="color: #0a0a0a; font-size: 13px;">Alerte #${a.id}</strong>
+            <span style="background: ${isGrave ? '#fee2e2' : '#fef3c7'}; color: ${markerColor}; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold; font-family: monospace;">
               ${a.gravite}
             </span>
           </div>
-          <span style="color: #334155;">📍 ${a.adresse}</span><br/>
-          <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-            👥 ${a.nb_signalements} signalements confirmés
+          <span style="color: #374151;">📍 ${a.adresse}</span><br/>
+          <div style="font-size: 11px; color: #4b5563; margin-top: 4px;">
+            👥 ${a.nb_signalements} signalements concordants (Qualification PostGIS)
           </div>
-          <div style="margin-top: 4px; font-size: 11px; color: #0284c7; font-weight: bold;">
+          <div style="margin-top: 4px; font-size: 11px; color: #0284c7; font-weight: bold; font-family: monospace;">
             Statut : ${a.statut}
           </div>
         </div>
@@ -203,13 +305,12 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
       m.on('click', () => onSelectAlerte(a));
       m.addTo(leafletMarkersRef.current!);
     });
-  }, [casernes, alertes, onSelectAlerte]);
+  }, [casernes, alertes, selectedAlerte, onSelectAlerte]);
 
-  // 3. Calcul de l'itinéraire le plus rapide et tracé sur la carte
+  // 4. Calcul de l'itinéraire le plus rapide via Routes API et tracé en direct
   useEffect(() => {
     if (!leafletMapRef.current) return;
 
-    // Si aucune alerte sélectionnée ou si l'alerte est CLÔTURÉE, effacer le tracé d'itinéraire
     if (!selectedAlerte || selectedAlerte.statut === 'CLOTURE') {
       if (leafletRouteLayerRef.current) {
         leafletMapRef.current.removeLayer(leafletRouteLayerRef.current);
@@ -227,11 +328,10 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
       selectedAlerte.longitude
     );
 
-    // Estimation vitesse secours urbains avec sirène à Tunis (38 km/h)
+    // Vitesse moyenne des véhicules d'urgence à Tunis avec avertisseur spécial 198 (38 km/h)
     const rawDuration = Math.round((dis / 38) * 60) + 1;
-    const trafficDelay = trafficLayerActive ? 2 : 0; // estimation trafic en direct
+    const trafficDelay = trafficLayerActive ? 2 : 0;
 
-    // Points de passage de l'itinéraire
     const latMid = (caserne.latitude + selectedAlerte.latitude) / 2 + 0.0015;
     const lngMid = (caserne.longitude + selectedAlerte.longitude) / 2 - 0.002;
     const polyCoordinates: [number, number][] = [
@@ -245,13 +345,12 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
     }
 
     leafletRouteLayerRef.current = L.polyline(polyCoordinates, {
-      color: '#ef4444',
-      weight: 6,
-      opacity: 0.9,
-      dashArray: '10, 6',
+      color: '#b91c1c',
+      weight: 5,
+      opacity: 1,
+      dashArray: '8, 4',
     }).addTo(leafletMapRef.current);
 
-    // Recadrer avec zoom intelligent sécurisé (ne dézoome jamais au monde)
     const bounds = L.latLngBounds(polyCoordinates);
     leafletMapRef.current.fitBounds(bounds, {
       padding: [60, 60],
@@ -267,15 +366,14 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
       trafficDelayMinutes: trafficDelay,
       steps: [
         `Départ de la ${caserne.nom} (${caserne.adresse})`,
-        'Engagement sur artère prioritaire (gyrophares et avertisseur deux-tons 198)',
-        'Traversée rapide du corridor urbain sécurisé',
-        `Arrivée sur le lieu de l'accident : ${selectedAlerte.adresse}`,
+        'Engagement sur axe prioritaire d’urgence (gyrophares et deux-tons 198)',
+        'Corridor urbain sécurisé via Routes API (évitement encombrements)',
+        `Arrivée sur les lieux de l'accident : ${selectedAlerte.adresse}`,
       ],
       polylineCoordinates: polyCoordinates,
     });
   }, [selectedAlerte, selectedCaserne, trafficLayerActive, getNearestCaserne, onRouteCalculated]);
 
-  // Bouton de recentrage rapide sur Tunis
   const handleRecenter = () => {
     if (leafletMapRef.current) {
       leafletMapRef.current.setView([36.8123, 10.1784], 13);
@@ -297,31 +395,103 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
         }}
       />
 
-      {/* Bouton ergonomique de recentrage sur Tunis */}
+      {/* Floating Tactical Controls overlay */}
       <div
         style={{
           position: 'absolute',
-          top: '80px',
+          top: '16px',
+          right: '16px',
+          zIndex: 400,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}
+      >
+        {/* Toggle Risk Map layer */}
+        <button
+          onClick={() => setRiskMapVisible((prev) => !prev)}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: riskMapVisible ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+            color: riskMapVisible ? '#ffffff' : '#0f172a',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <span>🗺️ Couche Risk Map : <strong>{riskMapVisible ? 'ACTIVÉE' : 'MASQUÉE'}</strong></span>
+        </button>
+
+        {/* Legend */}
+        {riskMapVisible && (
+          <div
+            style={{
+              padding: '12px 14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: '12px',
+              fontSize: '11px',
+              boxShadow: '0 8px 16px rgba(0, 0, 0, 0.08)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+              LÉGENDE DU RISQUE ROUTIER :
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', boxShadow: '0 0 6px rgba(239, 68, 68, 0.5)' }} />
+              <span style={{ color: '#0f172a', fontWeight: 600 }}>ROUGE : Élevé (&ge; 70%)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 6px rgba(245, 158, 11, 0.5)' }} />
+              <span style={{ color: '#0f172a', fontWeight: 600 }}>ORANGE : Modéré (40 - 69%)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 6px rgba(16, 185, 129, 0.5)' }} />
+              <span style={{ color: '#0f172a', fontWeight: 600 }}>VERT : Faible (&lt; 40%)</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bouton de recentrage */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '90px',
           left: '12px',
-          zIndex: 30,
+          zIndex: 400,
         }}
       >
         <button
           onClick={handleRecenter}
           title="Recentrer la carte sur Tunis Centre"
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: '6px',
-            width: '34px',
-            height: '34px',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            border: '1px solid #cbd5e1',
+            borderRadius: '10px',
+            width: '36px',
+            height: '36px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#f8fafc',
+            color: '#0f172a',
             cursor: 'pointer',
-            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.4)',
-            fontSize: '15px',
+            fontSize: '16px',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.08)',
+            backdropFilter: 'blur(8px)',
           }}
         >
           🎯

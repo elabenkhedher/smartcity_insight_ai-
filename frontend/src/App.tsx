@@ -10,7 +10,10 @@ import {
 import { CitizenReportForm } from './components/CitizenReportForm';
 import { MunicipalDashboard } from './components/MunicipalDashboard';
 import { ProtectionCivilePage } from './pages/ProtectionCivilePage';
+import { DecideursPage } from './pages/DecideursPage';
+import { AuditPage } from './pages/AuditPage';
 import { UnifiedAuthPortal } from './components/UnifiedAuthPortal';
+import { AuthProvider } from './context/AuthContext';
 import { clearActiveSession, getActiveSession } from './services/api';
 import { UserSession } from './types';
 
@@ -223,23 +226,25 @@ export const App: React.FC = () => {
   // =========================================================================
   if (!session || !roleCategory) {
     return (
-      <BrowserRouter>
-        <div
-          style={{
-            height: '100vh',
-            width: '100vw',
-            overflowY: 'auto',
-            background: 'var(--bg-darker)',
-          }}
-        >
-          <Routes>
-            <Route
-              path="*"
-              element={<UnifiedAuthPortal onLoginSuccess={handleLoginSuccess} />}
-            />
-          </Routes>
-        </div>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <div
+            style={{
+              height: '100vh',
+              width: '100vw',
+              overflowY: 'auto',
+              background: 'var(--bg-darker)',
+            }}
+          >
+            <Routes>
+              <Route
+                path="*"
+                element={<UnifiedAuthPortal onLoginSuccess={handleLoginSuccess} />}
+              />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
     );
   }
 
@@ -249,55 +254,60 @@ export const App: React.FC = () => {
   //    - Affichage EXCLUSIF du dashboard correspondant au rôle.
   // =========================================================================
   return (
-    <BrowserRouter>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          width: '100vw',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Barre de navigation minimale sans aucun onglet global */}
-        <ConnectedNavBar session={session} onLogout={handleLogout} />
-
-        <main
+    <AuthProvider>
+      <BrowserRouter>
+        <div
           style={{
-            flex: 1,
-            overflowY: 'auto',
-            background: 'var(--bg-darker)',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            width: '100vw',
+            overflow: 'hidden',
           }}
         >
-          <Routes>
-            {/* Si rôle 'responsable' -> Afficher uniquement MunicipalDashboard */}
-            {roleCategory === 'responsable' && (
-              <>
-                <Route path="/dashboard" element={<MunicipalDashboard />} />
-                <Route path="/responsable" element={<MunicipalDashboard />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </>
-            )}
+          {/* Barre de navigation minimale sans aucun onglet global */}
+          <ConnectedNavBar session={session} onLogout={handleLogout} />
 
-            {/* Si rôle 'citoyen' -> Afficher uniquement CitizenReportForm */}
-            {roleCategory === 'citoyen' && (
-              <>
-                <Route path="/citoyen" element={<CitizenReportForm />} />
-                <Route path="*" element={<Navigate to="/citoyen" replace />} />
-              </>
-            )}
+          <main
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              background: 'var(--bg-darker)',
+            }}
+          >
+            <Routes>
+              {/* Si rôle 'responsable' -> Afficher MunicipalDashboard */}
+              {roleCategory === 'responsable' && (
+                <>
+                  <Route path="/dashboard" element={<MunicipalDashboard />} />
+                  <Route path="/responsable" element={<MunicipalDashboard />} />
+                  <Route path="/decideurs" element={<DecideursPage />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </>
+              )}
 
-            {/* Si rôle 'protection' -> Afficher uniquement ProtectionCivilePage */}
-            {roleCategory === 'protection' && (
-              <>
-                <Route path="/protection-civile" element={<ProtectionCivilePage />} />
-                <Route path="*" element={<Navigate to="/protection-civile" replace />} />
-              </>
-            )}
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+              {/* Si rôle 'citoyen' -> Afficher uniquement CitizenReportForm */}
+              {roleCategory === 'citoyen' && (
+                <>
+                  <Route path="/citoyen" element={<CitizenReportForm />} />
+                  <Route path="*" element={<Navigate to="/citoyen" replace />} />
+                </>
+              )}
+
+              {/* Si rôle 'protection' -> Afficher ProtectionCivilePage */}
+              {roleCategory === 'protection' && (
+                <>
+                  <Route path="/protection-civile" element={<ProtectionCivilePage />} />
+                  <Route path="/decideurs" element={<DecideursPage />} />
+                  <Route path="/audit" element={<AuditPage />} />
+                  <Route path="*" element={<Navigate to="/protection-civile" replace />} />
+                </>
+              )}
+            </Routes>
+          </main>
+        </div>
+      </BrowserRouter>
+    </AuthProvider>
   );
 };
 

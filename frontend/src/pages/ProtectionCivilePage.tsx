@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Navbar } from '../components/Navbar';
 import { Header } from '../components/Header';
 import { AlertsList } from '../components/AlertsList';
 import { GoogleMapComponent } from '../components/GoogleMapComponent';
@@ -28,7 +29,6 @@ export const ProtectionCivilePage: React.FC = () => {
   const [isRiskMapModalOpen, setIsRiskMapModalOpen] = useState<boolean>(false);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<any>(null);
 
   // Charger les alertes et les casernes initiales
   const loadInitialData = useCallback(async () => {
@@ -66,220 +66,197 @@ export const ProtectionCivilePage: React.FC = () => {
       }
 
       console.log('Connexion au WebSocket:', WS_BASE_URL);
-      const ws = new WebSocket(WS_BASE_URL);
-      wsRef.current = ws;
+      try {
+        const ws = new WebSocket(WS_BASE_URL);
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        if (!isMounted) return;
-        console.log('WebSocket Protection Civile connecté avec succès ✅');
-        setWsConnected(true);
-      };
+        ws.onopen = () => {
+          if (!isMounted) return;
+          console.log('WebSocket Protection Civile connecté avec succès ✅');
+          setWsConnected(true);
+        };
 
-      ws.onmessage = (event) => {
-        if (!isMounted) return;
-        try {
-          const data = JSON.parse(event.data);
-          console.log('Message WebSocket reçu :', data);
+        ws.onmessage = (event) => {
+          if (!isMounted) return;
+          try {
+            const data = JSON.parse(event.data);
+            console.log('Message WebSocket reçu :', data);
 
-          if (data.event === 'NOUVELLE_ALERTE_ACCIDENT' && data.alerte) {
-            const rawAlerte = data.alerte;
-            const formattedAlerte: Alerte = {
-              id: rawAlerte.id,
-              statut: rawAlerte.statut,
-              gravite: rawAlerte.gravite,
-              adresse: rawAlerte.adresse,
-              latitude: Number(rawAlerte.latitude),
-              longitude: Number(rawAlerte.longitude),
-              nb_signalements: rawAlerte.nb_signalements || 1,
-              date_confirmation: rawAlerte.date_confirmation,
-              date_creation: rawAlerte.date_creation || new Date().toISOString(),
-            };
+            if (data.event === 'NOUVELLE_ALERTE_ACCIDENT' && data.alerte) {
+              const rawAlerte = data.alerte;
+              const formattedAlerte: Alerte = {
+                id: rawAlerte.id,
+                statut: rawAlerte.statut,
+                gravite: rawAlerte.gravite,
+                adresse: rawAlerte.adresse,
+                latitude: Number(rawAlerte.latitude),
+                longitude: Number(rawAlerte.longitude),
+                nb_signalements: rawAlerte.nb_signalements || 1,
+                date_confirmation: rawAlerte.date_confirmation,
+                date_creation: rawAlerte.date_creation || new Date().toISOString(),
+              };
 
-            // Émettre l'alarme sonore de la Protection Civile
-            playEmergencyAlarm();
+              // Émettre l'alarme sonore de la Protection Civile
+              playEmergencyAlarm();
 
-            // Mettre à jour la file des alertes
-            setAlertes((prev) => {
-              const exists = prev.findIndex((a) => a.id === formattedAlerte.id);
-              if (exists >= 0) {
-                const updated = [...prev];
-                updated[exists] = { ...updated[exists], ...formattedAlerte };
-                return updated;
-              }
-              return [formattedAlerte, ...prev];
-            });
+              setAlertes((prev) => {
+                const filtered = prev.filter((a) => a.id !== formattedAlerte.id);
+                return [formattedAlerte, ...filtered];
+              });
 
-            // Focus automatique et calcul immédiat de l'itinéraire vers la nouvelle alerte !
-            setSelectedAlerte(formattedAlerte);
+              setSelectedAlerte(formattedAlerte);
+            }
+          } catch (e) {
+            console.error('Erreur parsing WebSocket message', e);
           }
-        } catch (err) {
-          console.error('Erreur parsing WebSocket message:', err);
-        }
-      };
+        };
 
-      ws.onclose = () => {
-        if (!isMounted) return;
-        console.warn('WebSocket déconnecté, tentative de reconnexion dans 3s...');
-        setWsConnected(false);
-        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
-      };
+        ws.onerror = (err) => {
+          console.warn('Erreur WebSocket (Daphne non lancé ou hors ligne)', err);
+          if (isMounted) setWsConnected(false);
+        };
 
-      ws.onerror = (err) => {
-        console.error('Erreur WebSocket :', err);
-        ws.close();
-      };
+        ws.onclose = () => {
+          if (isMounted) setWsConnected(false);
+        };
+      } catch (err) {
+        console.warn('WebSocket init error', err);
+      }
     }
 
     connectWebSocket();
 
     return () => {
       isMounted = false;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
   }, []);
 
-  // Actions
-  const handleUpdateStatut = async (id: number, nouveauStatut: StatutAlerte) => {
-    try {
-      const res = await updateStatutAlerte(id, nouveauStatut);
-      setAlertes((prev) =>
-        prev.map((a) =>
-          a.id === id ? { ...a, statut: res.nouveau_statut as StatutAlerte } : a
-        )
-      );
-      if (selectedAlerte?.id === id) {
-        if (nouveauStatut === 'CLOTURE') {
-          // Si l'intervention est clôturée : la retirer immédiatement de la sélection et effacer l'itinéraire
-          setSelectedAlerte(null);
-          setActiveRoute(null);
-        } else {
-          setSelectedAlerte((prev) =>
-            prev ? { ...prev, statut: res.nouveau_statut as StatutAlerte } : null
-          );
-        }
-      }
-    } catch (err) {
-      console.error('Erreur mise à jour statut:', err);
-    }
-  };
-
+  // Déclencher un accident test
   const handleSimulateAccident = async () => {
     setSimulating(true);
     try {
       const res = await simulerAccident();
-      if (res && res.alerte_id) {
-        const simulatedAlerte: Alerte = {
-          id: res.alerte_id,
-          statut: res.statut || 'CONFIRME',
-          gravite: res.gravite || 'GRAVE',
-          adresse: res.adresse || 'Tunis Centre',
-          latitude: Number(res.latitude),
-          longitude: Number(res.longitude),
-          nb_signalements: 1,
-          date_confirmation: res.date_confirmation || new Date().toISOString(),
-          date_creation: new Date().toISOString(),
-        };
-
-        // Ajout immédiat à la liste et traçage direct de l'intervention
-        setAlertes((prev) => {
-          const exists = prev.findIndex((a) => a.id === simulatedAlerte.id);
-          if (exists >= 0) {
-            const updated = [...prev];
-            updated[exists] = { ...updated[exists], ...simulatedAlerte };
-            return updated;
-          }
-          return [simulatedAlerte, ...prev];
-        });
-        setSelectedAlerte(simulatedAlerte);
-        playEmergencyAlarm();
-      }
+      console.log('Accident simulé avec succès :', res);
+      // Recharger pour assurer la synchro immédiate
+      await loadInitialData();
     } catch (err) {
-      console.error('Erreur simulation accident:', err);
+      console.warn('Backend injoignable, injection locale pour test tactile', err);
+      // Création d'une alerte locale de démonstration
+      const fakeAlerte: Alerte = {
+        id: Math.floor(100 + Math.random() * 900),
+        statut: 'CONFIRME',
+        gravite: 'GRAVE',
+        adresse: 'Avenue Habib Bourguiba, Tunis Centre',
+        latitude: 36.8002,
+        longitude: 10.1865,
+        nb_signalements: 3,
+        date_creation: new Date().toISOString(),
+        date_confirmation: new Date().toISOString(),
+      };
+      playEmergencyAlarm();
+      setAlertes((prev) => [fakeAlerte, ...prev]);
+      setSelectedAlerte(fakeAlerte);
     } finally {
-      setTimeout(() => setSimulating(false), 800);
+      setSimulating(false);
     }
   };
 
-  const handleSelectAlerte = (alerte: Alerte) => {
-    setSelectedAlerte(alerte);
-  };
+  // Mettre à jour le statut d'une intervention
+  const handleUpdateStatut = async (alerteId: number, nouveauStatut: StatutAlerte) => {
+    try {
+      await updateStatutAlerte(alerteId, nouveauStatut);
+    } catch (err) {
+      console.warn('Backend statut update injoignable, mise à jour locale', err);
+    }
 
-  const handleTracerItineraire = (alerte: Alerte) => {
-    setSelectedAlerte(alerte);
+    setAlertes((prev) =>
+      prev.map((a) => (a.id === alerteId ? { ...a, statut: nouveauStatut } : a))
+    );
+
+    if (selectedAlerte && selectedAlerte.id === alerteId) {
+      setSelectedAlerte((prev) => (prev ? { ...prev, statut: nouveauStatut } : null));
+    }
   };
 
   const handleToggleSound = () => {
-    const next = toggleSound();
-    setSoundActive(next);
+    const newState = toggleSound();
+    setSoundActive(newState);
   };
 
-  const activeAlertsCount = alertes.filter(
-    (a) => a.statut === 'CONFIRME' || a.statut === 'PRISE_EN_CHARGE' || a.statut === 'EN_INTERVENTION'
-  ).length;
+  const activeEmergenciesCount = alertes.filter((a) => a.statut !== 'CLOTURE').length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      {/* Header bar opérationnel */}
+    <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', backgroundColor: '#0a0a0a', overflow: 'hidden' }}>
+      {/* Global Navigation Bar */}
+      <Navbar />
+
+      {/* Emergency Tactical Command Subheader */}
       <Header
         wsConnected={wsConnected}
         soundEnabled={soundActive}
         onToggleSound={handleToggleSound}
         trafficLayerActive={trafficActive}
-        onToggleTraffic={() => setTrafficActive(!trafficActive)}
+        onToggleTraffic={() => setTrafficActive((prev) => !prev)}
         onOpenRiskMapModal={() => setIsRiskMapModalOpen(true)}
         onSimulateAccident={handleSimulateAccident}
         simulating={simulating}
-        activeCount={activeAlertsCount}
+        activeCount={activeEmergenciesCount}
       />
 
-      {/* Disposition ergonomique en 3 colonnes : File d'Alertes | Carte Plein Écran | Panneau d'Itinéraire */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {/* Colonne 1 : File des Alertes & Incidents */}
+      {/* Main Tactical Operational View */}
+      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
+        {/* Left Side: Real-Time Alerts Drawer */}
         <AlertsList
           alertes={alertes}
           selectedAlerte={selectedAlerte}
-          onSelectAlerte={handleSelectAlerte}
+          onSelectAlerte={(a) => {
+            setSelectedAlerte(a);
+            setActiveRoute(null);
+          }}
           onUpdateStatut={handleUpdateStatut}
-          onTracerItineraire={handleTracerItineraire}
+          onTracerItineraire={(a) => {
+            setSelectedAlerte(a);
+          }}
         />
 
-        {/* Colonne 2 : Carte Tactique Plein Écran */}
-        <div style={{ flex: 1, position: 'relative', height: '100%', minWidth: 0, overflow: 'hidden' }}>
+        {/* Center: Tactical Grand Tunis Map */}
+        <div style={{ flex: 1, position: 'relative', height: '100%', width: '100%' }}>
           <GoogleMapComponent
             casernes={casernes}
             alertes={alertes}
             selectedAlerte={selectedAlerte}
             selectedCaserne={selectedCaserne}
             trafficLayerActive={trafficActive}
-            onSelectAlerte={handleSelectAlerte}
-            onRouteCalculated={setActiveRoute}
+            onSelectAlerte={(a) => {
+              setSelectedAlerte(a);
+            }}
+            onRouteCalculated={(route) => {
+              setActiveRoute(route);
+            }}
           />
         </div>
 
-        {/* Colonne 3 : Panneau d'Intervention d'Urgence */}
-        {activeRoute && selectedAlerte && (
+        {/* Right Side: Route & Station Dispatch Panel */}
+        {activeRoute && (
           <RoutePanel
             routeInfo={activeRoute}
             casernes={casernes}
-            onSelectCaserne={(c) => setSelectedCaserne(c)}
-            onClose={() => {
-              setActiveRoute(null);
-              setSelectedAlerte(null);
-            }}
+            onSelectCaserne={(caserne) => setSelectedCaserne(caserne)}
+            onClose={() => setActiveRoute(null)}
             onValiderIntervention={() => {
-              handleUpdateStatut(selectedAlerte.id, 'EN_INTERVENTION');
-              playEmergencyAlarm();
+              if (selectedAlerte) {
+                handleUpdateStatut(selectedAlerte.id, 'PRISE_EN_CHARGE');
+              }
+              setActiveRoute(null);
             }}
           />
         )}
       </div>
 
-      {/* Modal Risk Map Machine Learning */}
+      {/* Random Forest Risk Map Modal */}
       <RiskMapModal
         isOpen={isRiskMapModalOpen}
         onClose={() => setIsRiskMapModalOpen(false)}
